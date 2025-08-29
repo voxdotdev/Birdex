@@ -108,6 +108,12 @@
       margin-top: 14px
     }
 
+    /* Layout wrapper: grid + details pane */
+    .main { display: flex; align-items: flex-start; gap: 16px; }
+    .details { width: 360px; background: white; border: 1px solid #ded8ff; border-radius: 12px; padding: 12px; }
+    .details .pane-title { font-weight: 700; margin-bottom: 8px; }
+    .details .pane-photo { width: 100%; aspect-ratio: 4/3; background-size: cover; background-position: center; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; }
+
     .tile {
       position: relative;
       aspect-ratio: 3/4;
@@ -490,7 +496,10 @@
         details.</span>
     </div>
 
-    <div id="grid" class="grid" aria-live="polite"></div>
+    <div class="main">
+      <div id="grid" class="grid" aria-live="polite"></div>
+      <aside id="details" class="details" aria-live="polite" style="display:none;"></aside>
+    </div>
   </div>
 
   
@@ -514,6 +523,8 @@
     const cMissing = document.getElementById('countMissing');
     const cTotal = document.getElementById('countTotal');
     let filterMode = null; // 'captured' | 'seen' | 'missing' | null
+    const details = document.getElementById('details');
+    let selectedCode = null; // species code currently shown in details pane
 
     function updateChips() {
       const set = (el, on) => { if (!el) return; el.classList.toggle('active', !!on); };
@@ -521,6 +532,24 @@
       set(cSeen, filterMode === 'seen');
       set(cMissing, filterMode === 'missing');
       // Total is a reset; not shown as active
+    }
+
+    function renderDetails() {
+      if (!details) return;
+      if (!selectedCode) { details.style.display = 'none'; details.innerHTML = ''; return; }
+      const sp = SPECIES.find(s => s.code === selectedCode);
+      if (!sp) { details.style.display = 'none'; details.innerHTML = ''; return; }
+      const photo = photos[sp.code] || '';
+      const photoHtml = photo
+        ? `<div class="pane-photo" style="background-image:url('${photo}')"></div>`
+        : `<div class="pane-photo" style="display:flex;align-items:center;justify-content:center;color:#6b6683;">No photo yet</div>`;
+      const desc = (sp.description || '').trim();
+      details.style.display = 'block';
+      details.innerHTML = `
+        <div class="pane-title">${sp.name}</div>
+        ${photoHtml}
+        <div class="desc">${desc || '<em style="color:#6b6683">No description available.</em>'}</div>
+      `;
     }
 
     function save() {
@@ -696,6 +725,13 @@
           save(); render();
         });
 
+        const btnInfo = card.querySelector('.icon-info');
+        if (btnInfo) btnInfo.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedCode = (selectedCode === sp.code) ? null : sp.code;
+          renderDetails();
+        });
+
         grid.appendChild(tile);
       }
       if (cCaptured) cCaptured.textContent = `Captured: ${capturedCount}`;
@@ -703,6 +739,7 @@
       cMissing.textContent = `Missing: ${total - seenCount}`;
       cTotal.textContent = `Total: ${total}`;
       updateChips();
+      renderDetails();
     }
 
     q.addEventListener('input', render);

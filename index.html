@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bird Pokédex</title>
+  <title>Birdex</title>
   <style>
     :root {
       --bg: #f6f3ff;
@@ -484,24 +484,9 @@
     <button class="btn" id="importBtn">Import Data</button>
   </div>
 
+  <script src="species_data.js"></script>
   <script>
-    const SPECIES = [
-      { id: 1, code: 'blujay', name: 'Blue Jay' },
-      { id: 2, code: 'nocar', name: 'Northern Cardinal' },
-      { id: 3, code: 'tufti', name: 'Tufted Titmouse' },
-      { id: 4, code: 'carchi', name: 'Carolina Chickadee' },
-      { id: 5, code: 'moudov', name: 'Mourning Dove' },
-      { id: 6, code: 'amerob', name: 'American Robin' },
-      { id: 7, code: 'easpho', name: 'Eastern Phoebe' },
-      { id: 8, code: 'dowwod', name: 'Downy Woodpecker' },
-      { id: 9, code: 'rebtow', name: 'Red-bellied Woodpecker' },
-      { id: 10, code: 'amered', name: 'American Redstart' },
-      { id: 11, code: 'grtgra', name: 'Great Grackle' },
-      { id: 12, code: 'baleag', name: 'Bald Eagle' },
-      { id: 13, code: 'kestre', name: 'American Kestrel' },
-      { id: 14, code: 'blugra', name: 'Blue-gray Gnatcatcher' },
-      { id: 15, code: 'yelwar', name: 'Yellow Warbler' }
-    ];
+    // SPECIES is provided by species_data.js, generated from us-al_ebird_species.xlsx
 
     const STORAGE_KEY = 'birdpokedex_seen_v1';
     const PHOTO_KEY = 'birdpokedex_photos_v1';

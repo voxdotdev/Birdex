@@ -1,1 +1,40 @@
-Birdex.code-workspace
+###############################
+# GitHub Pages: keep only site assets
+# We serve static files (index.html, species_data.js, and any images).
+# Ignore local tooling, data sources, and common dev artifacts.
+
+# Site build inputs not required at runtime
+tools/
+us-al_ebird_species.xlsx
+*_ebird_species.xlsx
+*_ebird_species.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+.venv/
+venv/
+env/
+.python-version
+
+# Environment files
+.env
+.env.*
+
+# Editors/OS
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+
+# Logs
+*.log

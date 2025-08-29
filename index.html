@@ -247,20 +247,18 @@
     .field {
       display: flex;
       flex-direction: column;
-      flex: 1;
+      margin-bottom: 6px;
     }
 
-    .field textarea {
+    .field .value {
       width: 92%;
-      flex: 1;
-      /* expand to fill parent */
-      height: auto;
-      min-height: 0;
       border: 1px solid #ded8ff;
       border-radius: 10px;
-      padding: 8px;
-      resize: vertical;
-      /* optional: let user resize */
+      padding: 8px 12px;
+      background: white;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
     }
 
     .legend {
@@ -312,6 +310,7 @@
       border: 1px solid #ded8ff
     }
   </style>
+  <script src="https://unpkg.com/exifr/dist/exifr.min.js"></script>
 </head>
 
 <body>
@@ -366,10 +365,10 @@
 
     const STORAGE_KEY = 'birdpokedex_seen_v1'; // derived from photos
     const PHOTO_KEY = 'birdpokedex_photos_v1';
-    const NOTES_KEY = 'birdpokedex_notes_v1';
+    const META_KEY = 'birdpokedex_meta_v1';
 
     let photos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
-    let notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}');
+    let metadata = JSON.parse(localStorage.getItem(META_KEY) || '{}');
 
     const grid = document.getElementById('grid');
     const q = document.getElementById('q');
@@ -381,7 +380,7 @@
       const seenNow = Object.keys(photos);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(seenNow));
       localStorage.setItem(PHOTO_KEY, JSON.stringify(photos));
-      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+      localStorage.setItem(META_KEY, JSON.stringify(metadata));
     }
 
     function pickFile(cb) {
@@ -392,7 +391,7 @@
         const reader = new FileReader();
         reader.onload = () => {
           const img = new Image();
-          img.onload = () => {
+          img.onload = async () => {
             const maxSide = 1600;
             let w = img.width, h = img.height;
             const scale = Math.min(1, maxSide / Math.max(w, h));
@@ -401,11 +400,27 @@
             canvas.width = cw; canvas.height = ch;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, cw, ch);
+            let meta = {};
+            try {
+              const exif = await exifr.parse(file);
+              let exposure = '';
+              if (exif?.ExposureTime) {
+                exposure = exif.ExposureTime >= 1 ? exif.ExposureTime + 's' : '1/' + Math.round(1 / exif.ExposureTime) + 's';
+              }
+              meta = {
+                dateTaken: exif?.DateTimeOriginal ? exif.DateTimeOriginal.toISOString().split('T')[0] : '',
+                iso: exif?.ISO || '',
+                focalLength: exif?.FocalLength ? exif.FocalLength + ' mm' : '',
+                fstop: exif?.FNumber ? 'f/' + exif.FNumber : '',
+                exposureTime: exposure,
+                cameraModel: exif?.Model || ''
+              };
+            } catch (e) {}
             try {
               const out = canvas.toDataURL('image/jpeg', 0.85);
-              cb(out);
+              cb(out, meta);
             } catch (e) {
-              cb(reader.result);
+              cb(reader.result, meta);
             }
           };
           img.src = reader.result;
@@ -443,14 +458,17 @@
         // BACK
         const back = document.createElement('div');
         back.className = 'face back';
+        const meta = metadata[sp.code] || {};
         back.innerHTML = `
           <div class="top"><div class="title">${sp.name} · <span style="color:#6b6683">#${String(sp.id).padStart(3, '0')}</span></div>
           </div>
           <div class="body">
-            <div class="field">
-              <label for="nt-${sp.code}">Notes</label>
-              <textarea id="nt-${sp.code}" placeholder="When/where did you see it? behavior, lens, etc.">${notes[sp.code] || ''}</textarea>
-            </div>
+            <div class="field"><label>Date Taken</label><div class="value">${meta.dateTaken || ''}</div></div>
+            <div class="field"><label>ISO</label><div class="value">${meta.iso || ''}</div></div>
+            <div class="field"><label>Focal length</label><div class="value">${meta.focalLength || ''}</div></div>
+            <div class="field"><label>F-stop</label><div class="value">${meta.fstop || ''}</div></div>
+            <div class="field"><label>Exposure time</label><div class="value">${meta.exposureTime || ''}</div></div>
+            <div class="field"><label>Camera Model</label><div class="value">${meta.cameraModel || ''}</div></div>
           </div>`;
 
         card.appendChild(front); card.appendChild(back); tile.appendChild(card);
@@ -459,12 +477,9 @@
         tile.addEventListener('click', (e) => {
           // Only on front clicks we allow photo add; ignore clicks on back controls
           if (tile.classList.contains('flipped')) return;
-          pickFile(dataUrl => { photos[sp.code] = dataUrl; save(); render(); });
+          pickFile((dataUrl, meta) => { photos[sp.code] = dataUrl; metadata[sp.code] = meta; save(); render(); });
         });
         tile.addEventListener('contextmenu', (e) => { e.preventDefault(); tile.classList.toggle('flipped'); });
-
-        // Back-side buttons
-        back.querySelector('textarea').addEventListener('input', (e) => { notes[sp.code] = e.target.value; save(); });
 
         grid.appendChild(tile);
       }
@@ -475,9 +490,9 @@
 
     q.addEventListener('input', render);
 
-    // Export now includes photos + notes; seen derived from photo keys
+    // Export now includes photos + metadata; seen derived from photo keys
     document.getElementById('exportBtn').onclick = () => {
-      const payload = { photos, notes, seen: Object.keys(photos) };
+      const payload = { photos, metadata, seen: Object.keys(photos) };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -495,7 +510,7 @@
           try {
             const data = JSON.parse(r.result);
             photos = data.photos || {};
-            notes = data.notes || {};
+            metadata = data.metadata || {};
             save();
             render();
           } catch (err) { alert('Bad JSON'); }

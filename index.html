@@ -33,6 +33,7 @@
       max-width: 1400px;
       margin: 0 auto;
       padding: 16px 16px 80px;
+      position: relative;
     }
 
     .bar {
@@ -110,9 +111,10 @@
 
     /* Layout wrapper: grid + details pane */
     .main { display: flex; align-items: flex-start; gap: 16px; }
-    .details { width: 360px; background: white; border: 1px solid #ded8ff; border-radius: 12px; padding: 12px; }
+    .grid { flex: 1 1 0; min-width: 0; }
+    .details { width: 400px; background: white; border: 1px solid #ded8ff; border-radius: 12px; padding: 12px; position: fixed; right: 16px; top: 88px; max-height: calc(100vh - 104px); overflow: auto; }
     .details .pane-title { font-weight: 700; margin-bottom: 8px; }
-    .details .pane-photo { width: 100%; aspect-ratio: 4/3; background-size: cover; background-position: center; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; }
+    .details .pane-photo { width: 100%; aspect-ratio: 1/1; background-size: cover; background-position: center; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; }
 
     .tile {
       position: relative;

@@ -69,6 +69,7 @@
       display: flex;
       gap: 8px
     }
+    .header-actions { display: flex; gap: 8px; }
 
     .chip {
       background: var(--tile);
@@ -310,8 +311,9 @@
       background: var(--accent);
       border: none;
       color: white;
-      padding: 10px 14px;
+      padding: 6px 8px;
       border-radius: 12px;
+      font-size: 12px;
       font-weight: 700;
       box-shadow: 0 10px 24px rgba(108, 92, 231, .24);
       cursor: pointer
@@ -327,6 +329,8 @@
     .iconbtn:hover { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.06); }
     .iconbtn svg { width: 16px; height: 16px; display: block; }
     .back .header { margin-top: auto; border-top: 1px solid #eee; }
+    /* Remove drop shadow for header action buttons */
+    .header-actions .btn { box-shadow: none; }
   </style>
   <script>
     // Minimal EXIF reader for JPEG APP1 (Exif) used for our fields only
@@ -470,6 +474,10 @@
         <div class="chip" id="countMissing">Missing: 0</div>
         <div class="chip" id="countTotal">Total: 0</div>
       </div>
+      <div class="header-actions">
+        <button class="btn secondary" id="exportBtn" title="Download your current data">Export Data</button>
+        <button class="btn" id="importBtn">Import Data</button>
+      </div>
     </div>
   </div>
 
@@ -485,10 +493,7 @@
     <div id="grid" class="grid" aria-live="polite"></div>
   </div>
 
-  <div class="actions">
-    <button class="btn secondary" id="exportBtn" title="Download your current data">Export Data</button>
-    <button class="btn" id="importBtn">Import Data</button>
-  </div>
+  
 
   <script src="species_data.js"></script>
   <script>

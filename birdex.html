@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bird Pokédex</title>
+  <style>
+    :root {
+      --bg: #f6f3ff;
+      --tile: #e7e2fb;
+      --tile-seen: #c7f0d8;
+      --tile-missing: #e8e8ef;
+      --tile-hover: #d7d1ff;
+      --text: #2a1f4d;
+      --muted: #7a7396;
+      --accent: #6c5ce7;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 16px 16px 80px;
+    }
+
+    .bar {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .5));
+      backdrop-filter: blur(6px);
+      z-index: 5;
+      border-bottom: 1px solid #fff;
+    }
+
+    .bar .inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .badge {
+      background: white;
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 600;
+      font-size: 12px;
+      border: 1px solid #ede9fe
+    }
+
+    .counts {
+      margin-left: auto;
+      display: flex;
+      gap: 8px
+    }
+
+    .chip {
+      background: var(--tile);
+      border-radius: 12px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .search {
+      flex: 1 1 220px;
+      display: flex;
+      gap: 8px
+    }
+
+    .search input,
+    .search select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ded8ff;
+      border-radius: 10px;
+      background: white
+    }
+
+    /* Grid and tiles */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-top: 14px
+    }
+
+    .tile {
+      position: relative;
+      aspect-ratio: 3/4;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #ddd;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .03);
+      background: var(--tile);
+      cursor: pointer;
+      transition: transform .05s ease, box-shadow .1s ease, background .15s ease;
+      perspective: 1000px
+    }
+
+    .tile:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .06);
+      background: var(--tile-hover)
+    }
+
+    .tile.seen {
+      background: var(--tile-seen);
+    }
+
+    /* seen now means: has a photo */
+    .tile.missing {
+      background: var(--tile-missing);
+      filter: saturate(.7)
+    }
+
+    /* Flip card inner */
+    .card {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      transition: transform .4s ease
+    }
+
+    .tile.flipped .card {
+      transform: rotateY(180deg)
+    }
+
+    .face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      display: flex;
+      flex-direction: column
+    }
+
+    /* FRONT */
+    .front .content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .photobox {
+      flex: 1;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      width: 100%;
+      height: 100%
+    }
+
+    .front img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      font-size: 12px;
+      line-height: 1.2;
+      color: #4b426e;
+      font-weight: 600;
+      background: rgba(255, 255, 255, .85);
+      backdrop-filter: blur(3px)
+    }
+
+    .name {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      flex: 1
+    }
+
+    .idx {
+      color: #635b85;
+      font-weight: 700;
+      margin-left: 8px
+    }
+
+    .sil {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      opacity: .5
+    }
+
+    /* BACK */
+    .back {
+      transform: rotateY(180deg);
+      background: white
+    }
+
+    .back .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid #eee
+    }
+
+    .back .title {
+      font-weight: 700
+    }
+
+    .back .body {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      /* take the remaining height */
+      overflow: hidden;
+      /* remove internal scroll */
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: #6b6683;
+      margin-bottom: 4px
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .field textarea {
+      width: 92%;
+      flex: 1;
+      /* expand to fill parent */
+      height: auto;
+      min-height: 0;
+      border: 1px solid #ded8ff;
+      border-radius: 10px;
+      padding: 8px;
+      resize: vertical;
+      /* optional: let user resize */
+    }
+
+    .legend {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid #ddd
+    }
+
+    .dot.seen {
+      background: var(--tile-seen)
+    }
+
+    .dot.missing {
+      background: var(--tile-missing)
+    }
+
+    .actions {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      display: flex;
+      gap: 8px
+    }
+
+    .btn {
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      box-shadow: 0 10px 24px rgba(108, 92, 231, .24);
+      cursor: pointer
+    }
+
+    .btn.secondary {
+      background: white;
+      color: var(--accent);
+      border: 1px solid #ded8ff
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bar">
+    <div class="inner">
+      <div class="badge">Bird Pokédex</div>
+      <div class="search">
+        <input id="q" placeholder="Search species... (e.g., 'warbler')" />
+      </div>
+      <div class="counts">
+        <div class="chip" id="countSeen">Seen: 0</div>
+        <div class="chip" id="countMissing">Missing: 0</div>
+        <div class="chip" id="countTotal">Total: 0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="legend">
+      <div class="dot seen"></div> Seen (has a photo)
+      <div class="dot missing"></div> Missing (no photo yet)
+      <span style="margin-left:auto">Tip: left‑click a tile to add/change a photo. **Right‑click** flips the card to
+        details.</span>
+    </div>
+
+    <div id="grid" class="grid" aria-live="polite"></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn secondary" id="exportBtn" title="Download your current data">Export Data</button>
+    <button class="btn" id="importBtn">Import Data</button>
+  </div>
+
+  <script>
+    const SPECIES = [
+      { id: 1, code: 'blujay', name: 'Blue Jay' },
+      { id: 2, code: 'nocar', name: 'Northern Cardinal' },
+      { id: 3, code: 'tufti', name: 'Tufted Titmouse' },
+      { id: 4, code: 'carchi', name: 'Carolina Chickadee' },
+      { id: 5, code: 'moudov', name: 'Mourning Dove' },
+      { id: 6, code: 'amerob', name: 'American Robin' },
+      { id: 7, code: 'easpho', name: 'Eastern Phoebe' },
+      { id: 8, code: 'dowwod', name: 'Downy Woodpecker' },
+      { id: 9, code: 'rebtow', name: 'Red-bellied Woodpecker' },
+      { id: 10, code: 'amered', name: 'American Redstart' },
+      { id: 11, code: 'grtgra', name: 'Great Grackle' },
+      { id: 12, code: 'baleag', name: 'Bald Eagle' },
+      { id: 13, code: 'kestre', name: 'American Kestrel' },
+      { id: 14, code: 'blugra', name: 'Blue-gray Gnatcatcher' },
+      { id: 15, code: 'yelwar', name: 'Yellow Warbler' }
+    ];
+
+    const STORAGE_KEY = 'birdpokedex_seen_v1'; // derived from photos
+    const PHOTO_KEY = 'birdpokedex_photos_v1';
+    const NOTES_KEY = 'birdpokedex_notes_v1';
+
+    let photos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
+    let notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}');
+
+    const grid = document.getElementById('grid');
+    const q = document.getElementById('q');
+    const cSeen = document.getElementById('countSeen');
+    const cMissing = document.getElementById('countMissing');
+    const cTotal = document.getElementById('countTotal');
+
+    function save() {
+      const seenNow = Object.keys(photos);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seenNow));
+      localStorage.setItem(PHOTO_KEY, JSON.stringify(photos));
+      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+    }
+
+    function pickFile(cb) {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*';
+      inp.onchange = ev => {
+        const file = ev.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const maxSide = 1600;
+            let w = img.width, h = img.height;
+            const scale = Math.min(1, maxSide / Math.max(w, h));
+            const cw = Math.round(w * scale), ch = Math.round(h * scale);
+            const canvas = document.createElement('canvas');
+            canvas.width = cw; canvas.height = ch;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, cw, ch);
+            try {
+              const out = canvas.toDataURL('image/jpeg', 0.85);
+              cb(out);
+            } catch (e) {
+              cb(reader.result);
+            }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      };
+      inp.click();
+    }
+
+    function render() {
+      const term = q.value.trim().toLowerCase();
+      grid.innerHTML = '';
+      let seenCount = 0;
+      let total = 0;
+      for (const sp of SPECIES) {
+        if (term && !sp.name.toLowerCase().includes(term)) continue;
+        total++;
+        const hasPhoto = !!photos[sp.code];
+        if (hasPhoto) seenCount++;
+
+        const tile = document.createElement('div');
+        tile.className = `tile ${hasPhoto ? 'seen' : 'missing'}`;
+        tile.title = (hasPhoto ? 'Seen (has photo): ' : 'Missing: ') + sp.name + ' — left‑click to add photo; right‑click for details';
+
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        // FRONT
+        const front = document.createElement('div');
+        front.className = 'face front';
+        front.innerHTML = `
+          <div class="content">${photos[sp.code] ? `<div class=\"photobox\" style=\"background-image:url('${photos[sp.code]}')\"></div>` : `<div class=\"sil\">🐦</div>`}</div>
+          <div class=\"header\"><div class=\"name\">${sp.name}</div><div class=\"idx\">${String(sp.id).padStart(3, '0')}</div></div>`;
+
+        // BACK
+        const back = document.createElement('div');
+        back.className = 'face back';
+        back.innerHTML = `
+          <div class="top"><div class="title">${sp.name} · <span style="color:#6b6683">#${String(sp.id).padStart(3, '0')}</span></div>
+          </div>
+          <div class="body">
+            <div class="field">
+              <label for="nt-${sp.code}">Notes</label>
+              <textarea id="nt-${sp.code}" placeholder="When/where did you see it? behavior, lens, etc.">${notes[sp.code] || ''}</textarea>
+            </div>
+          </div>`;
+
+        card.appendChild(front); card.appendChild(back); tile.appendChild(card);
+
+        // Interactions
+        tile.addEventListener('click', (e) => {
+          // Only on front clicks we allow photo add; ignore clicks on back controls
+          if (tile.classList.contains('flipped')) return;
+          pickFile(dataUrl => { photos[sp.code] = dataUrl; save(); render(); });
+        });
+        tile.addEventListener('contextmenu', (e) => { e.preventDefault(); tile.classList.toggle('flipped'); });
+
+        // Back-side buttons
+        back.querySelector('textarea').addEventListener('input', (e) => { notes[sp.code] = e.target.value; save(); });
+
+        grid.appendChild(tile);
+      }
+      cSeen.textContent = `Seen: ${seenCount}`;
+      cMissing.textContent = `Missing: ${total - seenCount}`;
+      cTotal.textContent = `Total: ${total}`;
+    }
+
+    q.addEventListener('input', render);
+
+    // Export now includes photos + notes; seen derived from photo keys
+    document.getElementById('exportBtn').onclick = () => {
+      const payload = { photos, notes, seen: Object.keys(photos) };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pokedex-data.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    document.getElementById('importBtn').onclick = () => {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'application/json';
+      inp.onchange = e => {
+        const file = e.target.files[0]; if (!file) return;
+        const r = new FileReader();
+        r.onload = () => {
+          try {
+            const data = JSON.parse(r.result);
+            photos = data.photos || {};
+            notes = data.notes || {};
+            save();
+            render();
+          } catch (err) { alert('Bad JSON'); }
+        };
+        r.readAsText(file);
+      };
+      inp.click();
+    };
+
+    render();
+  </script>
+</body>
+
+</html>

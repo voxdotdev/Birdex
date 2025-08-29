@@ -75,7 +75,13 @@
       border-radius: 12px;
       padding: 6px 10px;
       font-size: 12px;
-      color: var(--muted)
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .chip.active {
+      background: var(--accent);
+      color: #fff;
     }
 
     .search {
@@ -502,6 +508,15 @@
     const cSeen = document.getElementById('countSeen');
     const cMissing = document.getElementById('countMissing');
     const cTotal = document.getElementById('countTotal');
+    let filterMode = null; // 'captured' | 'seen' | 'missing' | null
+
+    function updateChips() {
+      const set = (el, on) => { if (!el) return; el.classList.toggle('active', !!on); };
+      set(cCaptured, filterMode === 'captured');
+      set(cSeen, filterMode === 'seen');
+      set(cMissing, filterMode === 'missing');
+      // Total is a reset; not shown as active
+    }
 
     function save() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(seen)));
@@ -609,6 +624,13 @@
         const isSeen = hasPhoto || seen.has(sp.code);
         if (isSeen) seenCount++;
 
+        // Apply filter after counts so bubbles reflect counts for the current search
+        const passesFilter = !filterMode ||
+          (filterMode === 'captured' && hasPhoto) ||
+          (filterMode === 'seen' && isSeen) ||
+          (filterMode === 'missing' && !isSeen);
+        if (!passesFilter) continue;
+
         const tile = document.createElement('div');
         tile.className = `tile ${hasPhoto ? 'seen' : (isSeen ? 'observed' : 'missing')}`;
         tile.title = (hasPhoto ? 'Seen (has photo): ' : 'Missing: ') + sp.name + ' — left‑click to add photo; right‑click for details';
@@ -675,9 +697,16 @@
       cSeen.textContent = `Seen: ${seenCount}`;
       cMissing.textContent = `Missing: ${total - seenCount}`;
       cTotal.textContent = `Total: ${total}`;
+      updateChips();
     }
 
     q.addEventListener('input', render);
+
+    // Bubble filters (toggle on click, click Total to clear)
+    if (cCaptured) cCaptured.addEventListener('click', () => { filterMode = filterMode === 'captured' ? null : 'captured'; render(); });
+    if (cSeen) cSeen.addEventListener('click', () => { filterMode = filterMode === 'seen' ? null : 'seen'; render(); });
+    if (cMissing) cMissing.addEventListener('click', () => { filterMode = filterMode === 'missing' ? null : 'missing'; render(); });
+    if (cTotal) cTotal.addEventListener('click', () => { filterMode = null; render(); });
 
     // Export now includes photos + metadata + explicit seen set
     document.getElementById('exportBtn').onclick = () => {

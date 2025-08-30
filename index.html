@@ -865,8 +865,7 @@
     };
 
     (async function init() {
-      await loadDefaultIfEmpty();
-      // refresh personal mirrors in case defaults populated storage
+      // Initialize mirrors from whatever is currently in localStorage (Personal only)
       personalPhotos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
       personalMetadata = JSON.parse(localStorage.getItem(META_KEY) || '{}');
       personalSeenArr = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');

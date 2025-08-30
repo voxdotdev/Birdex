@@ -71,6 +71,9 @@
       gap: 8px
     }
     .header-actions { display: flex; gap: 8px; }
+    .viewtoggle { display: flex; align-items: center; gap: 6px; }
+    .viewtoggle label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .viewtoggle select { padding: 6px 10px; border: 1px solid #ded8ff; border-radius: 10px; background: white; }
 
     .chip {
       background: var(--tile);
@@ -482,6 +485,13 @@
         <div class="chip" id="countMissing">Missing: 0</div>
         <div class="chip" id="countTotal">Total: 0</div>
       </div>
+      <div class="viewtoggle">
+        <label for="viewMode">View:</label>
+        <select id="viewMode">
+          <option value="personal">Personal</option>
+          <option value="owner">thebirdswatch</option>
+        </select>
+      </div>
       <div class="header-actions">
         <button class="btn secondary" id="exportBtn" title="Download your current data">Export Data</button>
         <button class="btn" id="importBtn">Import Data</button>
@@ -518,6 +528,16 @@
     let metadata = JSON.parse(localStorage.getItem(META_KEY) || '{}');
     let seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
     const DEFAULT_DATA_URL = 'default-data.json'; // optional seed file checked into the repo
+    const VIEW_KEY = 'birdpokedex_view_v1';
+    const PERSONAL = 'personal';
+    const OWNER = 'owner';
+    let viewMode = localStorage.getItem(VIEW_KEY) || PERSONAL;
+    // Mirrors for personal data (localStorage)
+    let personalPhotos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
+    let personalMetadata = JSON.parse(localStorage.getItem(META_KEY) || '{}');
+    let personalSeenArr = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    // Cache for owner seed data
+    let ownerCache = null; // { photos, metadata, seen: [] }
 
     const grid = document.getElementById('grid');
     const q = document.getElementById('q');
@@ -535,6 +555,37 @@
       set(cSeen, filterMode === 'seen');
       set(cMissing, filterMode === 'missing');
       // Total is a reset; not shown as active
+    }
+
+    async function ensureOwnerLoaded() {
+      if (ownerCache) return ownerCache;
+      try {
+        const resp = await fetch(DEFAULT_DATA_URL, { cache: 'no-store' });
+        if (resp.ok) {
+          const data = await resp.json();
+          ownerCache = { photos: data.photos || {}, metadata: data.metadata || {}, seen: data.seen || [] };
+        } else {
+          ownerCache = { photos: {}, metadata: {}, seen: [] };
+        }
+      } catch (e) {
+        ownerCache = { photos: {}, metadata: {}, seen: [] };
+      }
+      return ownerCache;
+    }
+
+    async function setView(mode) {
+      viewMode = (mode === OWNER) ? OWNER : PERSONAL;
+      localStorage.setItem(VIEW_KEY, viewMode);
+      const sel = document.getElementById('viewMode'); if (sel) sel.value = viewMode;
+      if (viewMode === PERSONAL) {
+        photos = personalPhotos;
+        metadata = personalMetadata;
+        seen = new Set(personalSeenArr);
+      } else {
+        const seed = await ensureOwnerLoaded();
+        photos = seed.photos; metadata = seed.metadata; seen = new Set(seed.seen || []);
+      }
+      render();
     }
 
     function renderDetails() {
@@ -556,9 +607,14 @@
     }
 
     function save() {
+      if (viewMode !== PERSONAL) return; // only persist personal
       localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(seen)));
       localStorage.setItem(PHOTO_KEY, JSON.stringify(photos));
       localStorage.setItem(META_KEY, JSON.stringify(metadata));
+      // keep personal mirrors in sync
+      personalPhotos = photos;
+      personalMetadata = metadata;
+      personalSeenArr = Array.from(seen);
     }
 
     function pickFile(cb) {
@@ -709,6 +765,7 @@
         tile.addEventListener('click', (e) => {
           // Only on front clicks we allow photo add; ignore clicks on back controls
           if (tile.classList.contains('flipped')) return;
+          if (viewMode !== PERSONAL) return;
           pickFile((dataUrl, meta) => { photos[sp.code] = dataUrl; metadata[sp.code] = meta; save(); render(); });
         });
         tile.addEventListener('contextmenu', (e) => { e.preventDefault(); tile.classList.toggle('flipped'); });
@@ -717,12 +774,14 @@
         const btnEye = card.querySelector('.icon-eye');
         if (btnEye) btnEye.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (viewMode !== PERSONAL) return;
           if (seen.has(sp.code)) seen.delete(sp.code); else seen.add(sp.code);
           save(); render();
         });
         const btnTrash = card.querySelector('.icon-trash');
         if (btnTrash) btnTrash.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (viewMode !== PERSONAL) return;
           delete photos[sp.code];
           delete metadata[sp.code];
           save(); render();
@@ -779,11 +838,12 @@
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'pokedex-data.json';
+      a.download = 'birdex-data.json';
       a.click();
       URL.revokeObjectURL(a.href);
     };
     document.getElementById('importBtn').onclick = () => {
+      if (viewMode !== PERSONAL) { alert('Switch to Personal view to import.'); return; }
       const inp = document.createElement('input');
       inp.type = 'file'; inp.accept = 'application/json';
       inp.onchange = e => {
@@ -806,7 +866,14 @@
 
     (async function init() {
       await loadDefaultIfEmpty();
-      render();
+      // refresh personal mirrors in case defaults populated storage
+      personalPhotos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
+      personalMetadata = JSON.parse(localStorage.getItem(META_KEY) || '{}');
+      personalSeenArr = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const sel = document.getElementById('viewMode');
+      if (sel) sel.value = viewMode;
+      if (sel) sel.addEventListener('change', (e) => setView(e.target.value));
+      await setView(viewMode);
     })();
   </script>
 </body>

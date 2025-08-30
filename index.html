@@ -112,9 +112,9 @@
     /* Layout wrapper: grid + details pane */
     .main { display: flex; align-items: flex-start; gap: 16px; }
     .grid { flex: 1 1 0; min-width: 0; }
-    .details { width: 400px; background: white; border: 1px solid #ded8ff; border-radius: 12px; padding: 12px; position: fixed; right: 16px; top: 88px; max-height: calc(100vh - 104px); overflow: auto; }
+    .details { width: 450px; background: rgb(255, 255, 255); border: 1px solid #dadada; border-radius: 12px; padding: 12px; position: fixed; right: 40px; top: 88px; max-height: calc(100vh - 104px ); overflow:hidden; }
     .details .pane-title { font-weight: 700; margin-bottom: 8px; }
-    .details .pane-photo { width: 100%; aspect-ratio: 1/1; background-size: cover; background-position: center; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; }
+    .details .pane-photo { width: 100%; aspect-ratio: 1/1; background: rgb(232, 232, 237); background-size: cover; background-position: center; border: 1px solid rgb(221, 221, 221); border-radius: 8px; margin-bottom: 10px; }
 
     .tile {
       position: relative;
@@ -517,6 +517,7 @@
     let photos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
     let metadata = JSON.parse(localStorage.getItem(META_KEY) || '{}');
     let seen = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+    const DEFAULT_DATA_URL = 'default-data.json'; // optional seed file checked into the repo
 
     const grid = document.getElementById('grid');
     const q = document.getElementById('q');
@@ -746,6 +747,26 @@
 
     q.addEventListener('input', render);
 
+    async function loadDefaultIfEmpty() {
+      const isEmpty = (!photos || Object.keys(photos).length === 0)
+        && (!metadata || Object.keys(metadata).length === 0)
+        && (seen.size === 0);
+      if (!isEmpty) return;
+      try {
+        const resp = await fetch(DEFAULT_DATA_URL, { cache: 'no-store' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data && typeof data === 'object') {
+          photos = data.photos || {};
+          metadata = data.metadata || {};
+          seen = new Set(data.seen || []);
+          save();
+        }
+      } catch (e) {
+        console.debug('No default seed loaded', e);
+      }
+    }
+
     // Bubble filters (toggle on click, click Total to clear)
     if (cCaptured) cCaptured.addEventListener('click', () => { filterMode = filterMode === 'captured' ? null : 'captured'; render(); });
     if (cSeen) cSeen.addEventListener('click', () => { filterMode = filterMode === 'seen' ? null : 'seen'; render(); });
@@ -783,7 +804,10 @@
       inp.click();
     };
 
-    render();
+    (async function init() {
+      await loadDefaultIfEmpty();
+      render();
+    })();
   </script>
 </body>
 
